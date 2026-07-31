@@ -509,7 +509,7 @@ packages:
     engines: {node: '>= 20.19.0'}
 
   '@openpond/sdk@file:vendor/openpond-sdk-0.1.0.tgz':
-    resolution: {integrity: sha512-z/v1KFRSCopOcMeCO60s8KVYgKzQGBYJuj+rJJHRLB49sbKoYHnmasSRKt8XupS9DMhHiC3YKmYfs+HrTlTd0Q==, tarball: file:vendor/openpond-sdk-0.1.0.tgz}
+    resolution: {integrity: sha512-DSO34RS0fFwxUH2dUnwGVNplp5pYNKkNajjWK9ho3diNi21k+bunza8nZMGqSEur2LwinGuep0plUTviwcZ11A==, tarball: file:vendor/openpond-sdk-0.1.0.tgz}
     version: 0.1.0
     engines: {node: '>=22.14.0 <25'}
 
