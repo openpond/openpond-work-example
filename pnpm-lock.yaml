@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@openpond/sdk':
-        specifier: file:vendor/openpond-sdk-0.1.0.tgz
-        version: file:vendor/openpond-sdk-0.1.0.tgz
+        specifier: file:vendor/openpond-sdk-0.0.1.tgz
+        version: file:vendor/openpond-sdk-0.0.1.tgz
       better-auth:
         specifier: 1.6.25
         version: 1.6.25(next@16.2.12(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -508,9 +508,9 @@ packages:
     resolution: {integrity: sha512-IYqDGiTXab6FniAgnSdZwgWbomxpy9FtYvLKs7wCUs2a8RkITG+DFGO1DM9cr+E3/RgADRpFjrKVaJ1z6sjtEg==}
     engines: {node: '>= 20.19.0'}
 
-  '@openpond/sdk@file:vendor/openpond-sdk-0.1.0.tgz':
-    resolution: {integrity: sha512-DSO34RS0fFwxUH2dUnwGVNplp5pYNKkNajjWK9ho3diNi21k+bunza8nZMGqSEur2LwinGuep0plUTviwcZ11A==, tarball: file:vendor/openpond-sdk-0.1.0.tgz}
-    version: 0.1.0
+  '@openpond/sdk@file:vendor/openpond-sdk-0.0.1.tgz':
+    resolution: {integrity: sha512-SVA2rssZFbdOXfWHWKLJPU8W+cS9ZLoxsSOWj+lvSe1zIU8dvahwGMfdNVGUhgpnXTjZsxkA6H17h8jK/4NqfA==, tarball: file:vendor/openpond-sdk-0.0.1.tgz}
+    version: 0.0.1
     engines: {node: '>=22.14.0 <25'}
 
   '@opentelemetry/semantic-conventions@1.43.0':
@@ -1325,7 +1325,7 @@ snapshots:
 
   '@noble/hashes@2.2.0': {}
 
-  '@openpond/sdk@file:vendor/openpond-sdk-0.1.0.tgz': {}
+  '@openpond/sdk@file:vendor/openpond-sdk-0.0.1.tgz': {}
 
   '@opentelemetry/semantic-conventions@1.43.0': {}
 

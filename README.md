@@ -61,7 +61,7 @@ Application data is written to `.data/openpond-work.sqlite` and is ignored by gi
 This proof project initially points to the sibling OpenPond checkout:
 
 ```json
-"@openpond/sdk": "file:vendor/openpond-sdk-0.1.0.tgz"
+"@openpond/sdk": "file:vendor/openpond-sdk-0.0.1.tgz"
 ```
 
 That installs the exact tarball shape npm will distribute, not OpenPond desktop code. Rebuild it after SDK source changes:
@@ -74,10 +74,10 @@ cd ../openpond-work-example
 pnpm install
 ```
 
-After `@openpond/sdk@0.1.0` is bootstrapped on npm, replace the local dependency:
+After `@openpond/sdk@0.0.1` is bootstrapped on npm, replace the local dependency:
 
 ```bash
-pnpm add @openpond/sdk@^0.1.0
+pnpm add @openpond/sdk@^0.0.1
 ```
 
 ## Architecture
