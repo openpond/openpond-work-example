@@ -56,28 +56,18 @@ Open [http://localhost:3000](http://localhost:3000), create an account, and ente
 
 Application data is written to `.data/openpond-work.sqlite` and is ignored by git. Set `OPENPOND_WORK_DATABASE` to use another SQLite file.
 
-## SDK dependency during development
+## SDK dependency
 
-This proof project initially points to the sibling OpenPond checkout:
+This project installs the server-focused SDK directly from npm:
 
 ```json
-"openpond-sdk": "file:vendor/openpond-sdk-0.0.1.tgz"
+"openpond-sdk": "0.0.2"
 ```
 
-That installs the exact tarball shape npm will distribute, not OpenPond desktop code. Rebuild it after SDK source changes:
+Install or update it independently of the OpenPond desktop application:
 
 ```bash
-cd ../openpond
-pnpm build:sdk
-npm pack ./packages/sdk --pack-destination ../openpond-work-example/vendor
-cd ../openpond-work-example
-pnpm install
-```
-
-After `openpond-sdk@0.0.1` is bootstrapped on npm, replace the local dependency:
-
-```bash
-pnpm add openpond-sdk@^0.0.1
+pnpm add openpond-sdk@0.0.2
 ```
 
 ## Architecture
