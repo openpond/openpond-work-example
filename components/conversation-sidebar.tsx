@@ -2,6 +2,7 @@
 
 import { LoaderCircle, PanelLeftClose, Plus, Trash2 } from "lucide-react";
 
+import { OpenPondLogo } from "@/components/openpond-logo";
 import type { Conversation } from "@/lib/conversations";
 
 export function ConversationSidebar({
@@ -30,7 +31,7 @@ export function ConversationSidebar({
       <div className="sidebar-header">
         <div className="brand-row">
           <div className="brand-copy">
-            <span className="brand-mark small" aria-hidden="true">O</span>
+            <OpenPondLogo size="small" />
             <span>OpenPond</span>
           </div>
           <button className="panel-toggle" type="button" onClick={onClose} aria-label="Close conversations">
