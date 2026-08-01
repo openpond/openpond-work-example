@@ -1,6 +1,6 @@
 "use client";
 
-import type { OpenPondWorkEvent } from "@openpond/sdk";
+import type { OpenPondWorkEvent } from "openpond-sdk";
 import { useCallback, useEffect, useState } from "react";
 
 import { ConversationSidebar } from "@/components/conversation-sidebar";

@@ -1,12 +1,12 @@
 # OpenPond Work example
 
-A standalone Next.js application that demonstrates `@openpond/sdk` in a real server application. It provides the focused Work experience from OpenPond Sandbox: email/password authentication, a conversation sidebar, a centered work composer, a persistent transcript, and live sandbox/model/command progress.
+A standalone Next.js application that demonstrates `openpond-sdk` in a real server application. It provides the focused Work experience from OpenPond Sandbox: email/password authentication, a conversation sidebar, a centered work composer, a persistent transcript, and live sandbox/model/command progress.
 
 OpenPond is an open-source agent orchestration system for doing durable work with any model, provider, or subscription. The SDK creates an isolated sandbox, asks OpenPond Chat to plan the work, executes model tool calls in that sandbox, and returns a sandbox ID that the next conversation turn can resume.
 
 ## What this proves
 
-- `@openpond/sdk` installs into an independent Next.js project.
+- `openpond-sdk` installs into an independent Next.js project.
 - The OpenPond API key only runs in Node route handlers and is never sent to the browser.
 - Each conversation keeps its sandbox, filesystem, and transcript across turns.
 - Deleting a conversation also requests deletion of its sandbox.
@@ -61,7 +61,7 @@ Application data is written to `.data/openpond-work.sqlite` and is ignored by gi
 This proof project initially points to the sibling OpenPond checkout:
 
 ```json
-"@openpond/sdk": "file:vendor/openpond-sdk-0.0.1.tgz"
+"openpond-sdk": "file:vendor/openpond-sdk-0.0.1.tgz"
 ```
 
 That installs the exact tarball shape npm will distribute, not OpenPond desktop code. Rebuild it after SDK source changes:
@@ -74,10 +74,10 @@ cd ../openpond-work-example
 pnpm install
 ```
 
-After `@openpond/sdk@0.0.1` is bootstrapped on npm, replace the local dependency:
+After `openpond-sdk@0.0.1` is bootstrapped on npm, replace the local dependency:
 
 ```bash
-pnpm add @openpond/sdk@^0.0.1
+pnpm add openpond-sdk@^0.0.1
 ```
 
 ## Architecture

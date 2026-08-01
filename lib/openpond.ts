@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createOpenPondClient } from "@openpond/sdk";
+import { createOpenPondClient } from "openpond-sdk";
 
 let cached: ReturnType<typeof createOpenPondClient> | null = null;
 

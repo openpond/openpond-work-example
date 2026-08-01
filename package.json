@@ -14,7 +14,7 @@
     "sdk:local": "pnpm --dir ../openpond run build:sdk && npm pack ../openpond/packages/sdk --pack-destination vendor && pnpm install --force"
   },
   "dependencies": {
-    "@openpond/sdk": "file:vendor/openpond-sdk-0.0.1.tgz",
+    "openpond-sdk": "file:vendor/openpond-sdk-0.0.1.tgz",
     "better-auth": "1.6.25",
     "lucide-react": "1.28.0",
     "next": "16.2.12",

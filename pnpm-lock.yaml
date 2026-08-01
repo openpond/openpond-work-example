@@ -8,9 +8,6 @@ importers:
 
   .:
     dependencies:
-      '@openpond/sdk':
-        specifier: file:vendor/openpond-sdk-0.0.1.tgz
-        version: file:vendor/openpond-sdk-0.0.1.tgz
       better-auth:
         specifier: 1.6.25
         version: 1.6.25(next@16.2.12(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -20,6 +17,9 @@ importers:
       next:
         specifier: 16.2.12
         version: 16.2.12(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      openpond-sdk:
+        specifier: file:vendor/openpond-sdk-0.0.1.tgz
+        version: file:vendor/openpond-sdk-0.0.1.tgz
       react:
         specifier: 19.2.8
         version: 19.2.8
@@ -508,11 +508,6 @@ packages:
     resolution: {integrity: sha512-IYqDGiTXab6FniAgnSdZwgWbomxpy9FtYvLKs7wCUs2a8RkITG+DFGO1DM9cr+E3/RgADRpFjrKVaJ1z6sjtEg==}
     engines: {node: '>= 20.19.0'}
 
-  '@openpond/sdk@file:vendor/openpond-sdk-0.0.1.tgz':
-    resolution: {integrity: sha512-SVA2rssZFbdOXfWHWKLJPU8W+cS9ZLoxsSOWj+lvSe1zIU8dvahwGMfdNVGUhgpnXTjZsxkA6H17h8jK/4NqfA==, tarball: file:vendor/openpond-sdk-0.0.1.tgz}
-    version: 0.0.1
-    engines: {node: '>=22.14.0 <25'}
-
   '@opentelemetry/semantic-conventions@1.43.0':
     resolution: {integrity: sha512-eSYWTm620tTk45EKSedaUL8MFYI8hW164hIXsgIHyxu3VobUB3fFCu5t0hQby6OoWRPsG1KkKUG2M5UadiLiVg==}
     engines: {node: '>=14'}
@@ -920,6 +915,11 @@ packages:
       sass:
         optional: true
 
+  openpond-sdk@file:vendor/openpond-sdk-0.0.1.tgz:
+    resolution: {integrity: sha512-PmTUwyfyioLr5/6lI5Bpi5eIP5kb88E4aesbEqQYLYSeTyq0tLdiJQR58nWh6xVnf0FGGbbZLPz/kisEkNRa7A==, tarball: file:vendor/openpond-sdk-0.0.1.tgz}
+    version: 0.0.1
+    engines: {node: '>=22.14.0 <25'}
+
   parse-entities@4.0.2:
     resolution: {integrity: sha512-GG2AQYWoLgL877gQIKeRPGO1xF9+eG1ujIb5soS5gPvLQ1y2o8FL90w2QWNdf9I361Mpp7726c+lj3U0qK1uGw==}
 
@@ -1324,8 +1324,6 @@ snapshots:
   '@noble/ciphers@2.2.0': {}
 
   '@noble/hashes@2.2.0': {}
-
-  '@openpond/sdk@file:vendor/openpond-sdk-0.0.1.tgz': {}
 
   '@opentelemetry/semantic-conventions@1.43.0': {}
 
@@ -1914,6 +1912,8 @@ snapshots:
     transitivePeerDependencies:
       - '@babel/core'
       - babel-plugin-macros
+
+  openpond-sdk@file:vendor/openpond-sdk-0.0.1.tgz: {}
 
   parse-entities@4.0.2:
     dependencies:

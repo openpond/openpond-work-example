@@ -1,7 +1,7 @@
 import {
   OpenPondNonExecutingSandboxError,
   type OpenPondWorkEvent,
-} from "@openpond/sdk";
+} from "openpond-sdk";
 
 import {
   appendMessage,

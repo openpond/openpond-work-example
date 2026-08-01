@@ -5,7 +5,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "OpenPond Work",
-  description: "A server-side @openpond/sdk example for agentic work in sandboxes.",
+  description: "A server-side openpond-sdk example for agentic work in sandboxes.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
