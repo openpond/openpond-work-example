@@ -119,6 +119,14 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .work-group-rows { padding: 6px 11px 9px; }
 .work-group-rows .activity-row { padding: 7px 0; }
 .work-group-rows .activity-row small { max-width: 250px; }
+.output-cards { display: grid; gap: 7px; padding: 0 10px 10px; }
+.output-card { display: flex; min-width: 0; align-items: center; gap: 9px; padding: 10px; border: 1px solid var(--border); border-radius: 9px; background: #101a25; color: #9dabb9; text-decoration: none; transition: border-color .15s ease, background .15s ease, color .15s ease; }
+.output-card:hover { border-color: var(--border-strong); background: var(--surface-hover); color: #fff; }
+.output-card > svg { flex: 0 0 auto; }
+.output-card > span { min-width: 0; flex: 1; }
+.output-card strong, .output-card small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.output-card strong { color: #dce3ea; font-size: 11px; font-weight: 650; }
+.output-card small { padding-top: 3px; color: var(--muted); font-size: 10px; }
 
 .composer-stage { display: flex; width: min(720px, calc(100% - 40px)); margin: auto; flex-direction: column; align-items: stretch; transform: translateY(-7vh); }
 .welcome-copy { padding-bottom: 28px; text-align: center; }

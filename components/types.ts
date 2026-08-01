@@ -1,11 +1,13 @@
 import type {
   Conversation,
   ConversationMessage,
+  ConversationOutput,
 } from "@/lib/conversations";
 
 export type ConversationDetail = {
   conversation: Conversation;
   messages: ConversationMessage[];
+  outputs: ConversationOutput[];
 };
 
 export type ActivityRow = {
@@ -20,4 +22,5 @@ export type WorkActivityGroup = {
   title: string;
   state: "active" | "success" | "error";
   rows: ActivityRow[];
+  outputs: ConversationOutput[];
 };

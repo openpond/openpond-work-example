@@ -23,6 +23,25 @@ export type ConversationMessage = {
   createdAt: string;
 };
 
+export type ConversationOutput = {
+  id: string;
+  conversationId: string;
+  sandboxId: string;
+  path: string;
+  name: string;
+  mimeType: string;
+  sizeBytes: number;
+  revision: number;
+  updatedAt: string;
+  createdAt: string;
+  downloadUrl: string;
+};
+
+export type StoredConversationOutput = ConversationOutput & {
+  storageKey: string;
+  sha256: string;
+};
+
 type ConversationRow = {
   id: string;
   title: string;
@@ -37,6 +56,22 @@ type MessageRow = {
   id: string;
   role: "user" | "assistant";
   content: string;
+  created_at: string;
+};
+
+type OutputRow = {
+  id: string;
+  conversation_id: string;
+  sandbox_id: string;
+  path: string;
+  name: string;
+  mime_type: string;
+  size_bytes: number;
+  storage_key: string | null;
+  sha256: string | null;
+  revision: number;
+  finalized: number;
+  updated_at: string;
   created_at: string;
 };
 
@@ -63,7 +98,44 @@ database.exec(`
   );
   CREATE INDEX IF NOT EXISTS work_message_conversation_created
     ON work_message(conversation_id, created_at ASC);
+  CREATE TABLE IF NOT EXISTS work_output (
+    id TEXT PRIMARY KEY,
+    conversation_id TEXT NOT NULL REFERENCES work_conversation(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL,
+    sandbox_id TEXT NOT NULL,
+    path TEXT NOT NULL,
+    name TEXT NOT NULL,
+    mime_type TEXT NOT NULL,
+    size_bytes INTEGER NOT NULL,
+    storage_key TEXT,
+    sha256 TEXT,
+    revision INTEGER NOT NULL DEFAULT 1,
+    finalized INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    UNIQUE(conversation_id, path, updated_at)
+  );
+  CREATE INDEX IF NOT EXISTS work_output_conversation_created
+    ON work_output(conversation_id, created_at ASC);
+  CREATE TABLE IF NOT EXISTS work_sandbox_cleanup (
+    sandbox_id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    conversation_id TEXT,
+    status TEXT NOT NULL DEFAULT 'pending',
+    attempts INTEGER NOT NULL DEFAULT 0,
+    last_error TEXT,
+    next_attempt_at TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS work_sandbox_cleanup_due
+    ON work_sandbox_cleanup(status, next_attempt_at ASC);
 `);
+
+ensureColumn("work_output", "storage_key", "TEXT");
+ensureColumn("work_output", "sha256", "TEXT");
+ensureColumn("work_output", "revision", "INTEGER NOT NULL DEFAULT 1");
+ensureColumn("work_output", "finalized", "INTEGER NOT NULL DEFAULT 0");
 
 export function listConversations(userId: string): Conversation[] {
   const rows = database
@@ -101,7 +173,11 @@ export function createConversation(userId: string): Conversation {
 export function getConversation(
   userId: string,
   conversationId: string,
-): { conversation: Conversation; messages: ConversationMessage[] } | null {
+): {
+  conversation: Conversation;
+  messages: ConversationMessage[];
+  outputs: ConversationOutput[];
+} | null {
   const row = database
     .prepare(`
       SELECT id, title, sandbox_id, status, error, created_at, updated_at
@@ -118,6 +194,16 @@ export function getConversation(
       ORDER BY created_at ASC
     `)
     .all(conversationId, userId) as unknown as MessageRow[];
+  const outputs = database
+    .prepare(`
+      SELECT id, conversation_id, sandbox_id, path, name, mime_type,
+             size_bytes, storage_key, sha256, revision, finalized,
+             updated_at, created_at
+      FROM work_output
+      WHERE conversation_id = ? AND user_id = ? AND finalized = 1
+      ORDER BY created_at ASC
+    `)
+    .all(conversationId, userId) as unknown as OutputRow[];
   return {
     conversation: mapConversation(row),
     messages: messages.map((message) => ({
@@ -126,7 +212,196 @@ export function getConversation(
       content: message.content,
       createdAt: message.created_at,
     })),
+    outputs: outputs.map((output) => publicOutput(mapOutput(output))),
   };
+}
+
+export function listStoredConversationOutputs(
+  userId: string,
+  conversationId: string,
+): StoredConversationOutput[] {
+  const rows = database
+    .prepare(`
+      SELECT id, conversation_id, sandbox_id, path, name, mime_type,
+             size_bytes, storage_key, sha256, revision, finalized,
+             updated_at, created_at
+      FROM work_output
+      WHERE conversation_id = ? AND user_id = ? AND finalized = 1
+      ORDER BY created_at ASC
+    `)
+    .all(conversationId, userId) as unknown as OutputRow[];
+  return rows.map(mapOutput);
+}
+
+export function reserveConversationOutput(
+  userId: string,
+  conversationId: string,
+  sandboxId: string,
+  output: {
+    path: string;
+    name: string;
+    mimeType: string;
+    sizeBytes: number;
+    updatedAt: string;
+  },
+): { id: string; revision: number; finalized: boolean } {
+  const existing = database
+    .prepare(`
+      SELECT id, conversation_id, sandbox_id, path, name, mime_type,
+             size_bytes, storage_key, sha256, revision, finalized,
+             updated_at, created_at
+      FROM work_output
+      WHERE conversation_id = ? AND user_id = ? AND path = ? AND updated_at = ?
+    `)
+    .get(conversationId, userId, output.path, output.updatedAt) as
+    | OutputRow
+    | undefined;
+  if (existing) {
+    return {
+      id: existing.id,
+      revision: existing.revision,
+      finalized: existing.finalized === 1,
+    };
+  }
+  const row: OutputRow = {
+    id: randomUUID(),
+    conversation_id: conversationId,
+    sandbox_id: sandboxId,
+    path: output.path,
+    name: output.name,
+    mime_type: output.mimeType,
+    size_bytes: output.sizeBytes,
+    storage_key: null,
+    sha256: null,
+    revision: 1,
+    finalized: 0,
+    updated_at: output.updatedAt,
+    created_at: new Date().toISOString(),
+  };
+  const inserted = database
+    .prepare(`
+      INSERT INTO work_output
+        (id, conversation_id, user_id, sandbox_id, path, name, mime_type,
+         size_bytes, storage_key, sha256, revision, finalized, updated_at, created_at)
+      SELECT ?, id, user_id, ?, ?, ?, ?, ?, NULL, NULL,
+             COALESCE((SELECT MAX(revision) + 1 FROM work_output WHERE conversation_id = ? AND name = ?), 1),
+             0, ?, ?
+      FROM work_conversation
+      WHERE id = ? AND user_id = ?
+    `)
+    .run(
+      row.id,
+      sandboxId,
+      output.path,
+      output.name,
+      output.mimeType,
+      output.sizeBytes,
+      conversationId,
+      output.name,
+      output.updatedAt,
+      row.created_at,
+      conversationId,
+      userId,
+    );
+  if (inserted.changes !== 1) throw new Error("Conversation not found");
+  const reserved = database
+    .prepare(`
+      SELECT revision, finalized FROM work_output
+      WHERE id = ? AND conversation_id = ? AND user_id = ?
+    `)
+    .get(row.id, conversationId, userId) as
+    | { revision: number; finalized: number }
+    | undefined;
+  if (!reserved) throw new Error("Reserved output not found");
+  return {
+    id: row.id,
+    revision: reserved.revision,
+    finalized: reserved.finalized === 1,
+  };
+}
+
+export function finalizeConversationOutput(
+  userId: string,
+  conversationId: string,
+  outputId: string,
+  stored: { storageKey: string; sha256: string; sizeBytes: number },
+): ConversationOutput {
+  const updated = database
+    .prepare(`
+      UPDATE work_output
+      SET storage_key = ?, sha256 = ?, size_bytes = ?, finalized = 1
+      WHERE id = ? AND conversation_id = ? AND user_id = ?
+    `)
+    .run(
+      stored.storageKey,
+      stored.sha256,
+      stored.sizeBytes,
+      outputId,
+      conversationId,
+      userId,
+    );
+  if (updated.changes !== 1) throw new Error("Reserved output not found");
+  const output = getConversationOutput(userId, conversationId, outputId);
+  if (!output) throw new Error("Finalized output not found");
+  return publicOutput(output);
+}
+
+export function removePendingConversationOutput(
+  userId: string,
+  conversationId: string,
+  outputId: string,
+): void {
+  database
+    .prepare(`
+      DELETE FROM work_output
+      WHERE id = ? AND conversation_id = ? AND user_id = ? AND finalized = 0
+    `)
+    .run(outputId, conversationId, userId);
+}
+
+export function listPendingConversationOutputsForSandbox(sandboxId: string): Array<{
+  id: string;
+  userId: string;
+  conversationId: string;
+  path: string;
+  name: string;
+  mimeType: string;
+  sizeBytes: number;
+}> {
+  return database
+    .prepare(`
+      SELECT id, user_id AS userId, conversation_id AS conversationId,
+             path, name, mime_type AS mimeType, size_bytes AS sizeBytes
+      FROM work_output
+      WHERE sandbox_id = ? AND finalized = 0
+      ORDER BY created_at ASC
+    `)
+    .all(sandboxId) as Array<{
+    id: string;
+    userId: string;
+    conversationId: string;
+    path: string;
+    name: string;
+    mimeType: string;
+    sizeBytes: number;
+  }>;
+}
+
+export function getConversationOutput(
+  userId: string,
+  conversationId: string,
+  outputId: string,
+): StoredConversationOutput | null {
+  const row = database
+    .prepare(`
+      SELECT id, conversation_id, sandbox_id, path, name, mime_type,
+             size_bytes, storage_key, sha256, revision, finalized,
+             updated_at, created_at
+      FROM work_output
+      WHERE id = ? AND conversation_id = ? AND user_id = ? AND finalized = 1
+    `)
+    .get(outputId, conversationId, userId) as OutputRow | undefined;
+  return row ? mapOutput(row) : null;
 }
 
 export function appendMessage(
@@ -204,6 +479,76 @@ export function deleteConversation(userId: string, conversationId: string): stri
   return row.sandbox_id;
 }
 
+export function enqueueSandboxCleanup(
+  userId: string,
+  conversationId: string | null,
+  sandboxId: string,
+  error?: string,
+): void {
+  const now = new Date().toISOString();
+  database
+    .prepare(`
+      INSERT INTO work_sandbox_cleanup
+        (sandbox_id, user_id, conversation_id, status, attempts, last_error,
+         next_attempt_at, created_at, updated_at)
+      VALUES (?, ?, ?, 'pending', 0, ?, ?, ?, ?)
+      ON CONFLICT(sandbox_id) DO UPDATE SET
+        status = 'pending', last_error = excluded.last_error,
+        next_attempt_at = excluded.next_attempt_at, updated_at = excluded.updated_at
+    `)
+    .run(sandboxId, userId, conversationId, error ?? null, now, now, now);
+}
+
+export function listPendingSandboxCleanups(limit = 10): Array<{
+  sandboxId: string;
+  attempts: number;
+}> {
+  return database
+    .prepare(`
+      SELECT sandbox_id AS sandboxId, attempts
+      FROM work_sandbox_cleanup
+      WHERE status = 'pending' AND next_attempt_at <= ?
+      ORDER BY next_attempt_at ASC
+      LIMIT ?
+    `)
+    .all(new Date().toISOString(), limit) as Array<{
+    sandboxId: string;
+    attempts: number;
+  }>;
+}
+
+export function completeSandboxCleanup(sandboxId: string): void {
+  database
+    .prepare(`
+      UPDATE work_sandbox_cleanup
+      SET status = 'complete', last_error = NULL, updated_at = ?
+      WHERE sandbox_id = ?
+    `)
+    .run(new Date().toISOString(), sandboxId);
+}
+
+export function retrySandboxCleanup(
+  sandboxId: string,
+  attempts: number,
+  error: string,
+): void {
+  const delayMs = Math.min(60 * 60_000, 2 ** Math.min(attempts, 10) * 1_000);
+  const now = new Date();
+  database
+    .prepare(`
+      UPDATE work_sandbox_cleanup
+      SET attempts = ?, last_error = ?, next_attempt_at = ?, updated_at = ?
+      WHERE sandbox_id = ?
+    `)
+    .run(
+      attempts + 1,
+      error,
+      new Date(now.getTime() + delayMs).toISOString(),
+      now.toISOString(),
+      sandboxId,
+    );
+}
+
 function mapConversation(row: ConversationRow): Conversation {
   return {
     id: row.id,
@@ -214,6 +559,42 @@ function mapConversation(row: ConversationRow): Conversation {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+function mapOutput(row: OutputRow): StoredConversationOutput {
+  if (!row.storage_key || !row.sha256) {
+    throw new Error(`Output ${row.id} is not finalized`);
+  }
+  return {
+    id: row.id,
+    conversationId: row.conversation_id,
+    sandboxId: row.sandbox_id,
+    path: row.path,
+    name: row.name,
+    mimeType: row.mime_type,
+    sizeBytes: row.size_bytes,
+    storageKey: row.storage_key,
+    sha256: row.sha256,
+    revision: row.revision,
+    updatedAt: row.updated_at,
+    createdAt: row.created_at,
+    downloadUrl: `/api/conversations/${encodeURIComponent(
+      row.conversation_id,
+    )}/outputs/${encodeURIComponent(row.id)}`,
+  };
+}
+
+function publicOutput(output: StoredConversationOutput): ConversationOutput {
+  const { storageKey: _storageKey, sha256: _sha256, ...publicFields } = output;
+  return publicFields;
+}
+
+function ensureColumn(table: string, column: string, definition: string): void {
+  const columns = database.prepare(`PRAGMA table_info(${table})`).all() as Array<{
+    name: string;
+  }>;
+  if (columns.some((candidate) => candidate.name === column)) return;
+  database.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
 }
 
 function titleFromMessage(content: string): string {
