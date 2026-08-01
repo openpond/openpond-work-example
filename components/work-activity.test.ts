@@ -65,3 +65,27 @@ test("keeps failures inside the matching work group", () => {
   assert.equal(groups[1]?.state, "error");
   assert.equal(groups[1]?.rows.at(-1)?.label, "Sandbox unavailable");
 });
+
+test("keeps detected outputs inside the matching work group", () => {
+  const output = {
+    id: "output-1",
+    conversationId: "conversation-1",
+    sandboxId: "sandbox-1",
+    path: "/workspace/outputs/report.docx",
+    name: "report.docx",
+    mimeType:
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    sizeBytes: 4812,
+    revision: 1,
+    updatedAt: "2026-07-31T20:00:00.000Z",
+    createdAt: "2026-07-31T20:00:01.000Z",
+    downloadUrl: "/api/conversations/conversation-1/outputs/output-1",
+  };
+  const groups = projectWorkEvent(
+    [createActivityGroup("run-1", "Create a report")],
+    "run-1",
+    { type: "output", output },
+  );
+
+  assert.deepEqual(groups[0]?.outputs, [output]);
+});

@@ -1,6 +1,16 @@
 import type { OpenPondWorkEvent } from "openpond-sdk";
 
 import type { ActivityRow, WorkActivityGroup } from "@/components/types";
+import type { ConversationOutput } from "@/lib/conversations";
+
+type ExcludeOutputEvent<Event> = Event extends { type: "output" }
+  ? never
+  : Event;
+type NonOutputWorkEvent = ExcludeOutputEvent<OpenPondWorkEvent>;
+
+export type WorkStreamEvent =
+  | NonOutputWorkEvent
+  | { type: "output"; output: ConversationOutput };
 
 export function createActivityGroup(id: string, prompt: string): WorkActivityGroup {
   return {
@@ -8,23 +18,29 @@ export function createActivityGroup(id: string, prompt: string): WorkActivityGro
     title: compactTitle(prompt),
     state: "active",
     rows: [{ id: "starting", label: "Preparing sandbox", state: "active" }],
+    outputs: [],
   };
 }
 
 export function projectWorkEvent(
   groups: WorkActivityGroup[],
   runId: string,
-  event: OpenPondWorkEvent,
+  event: WorkStreamEvent,
 ): WorkActivityGroup[] {
   return updateGroup(groups, runId, (group) => ({
     ...group,
     rows: projectRows(group.rows, event),
+    outputs:
+      event.type === "output"
+        ? mergeOutputs(group.outputs, [event.output])
+        : group.outputs,
   }));
 }
 
 export function completeActivityGroup(
   groups: WorkActivityGroup[],
   runId: string,
+  outputs: ConversationOutput[] = [],
 ): WorkActivityGroup[] {
   return updateGroup(groups, runId, (group) => ({
     ...group,
@@ -32,6 +48,7 @@ export function completeActivityGroup(
     rows: group.rows.map((row) =>
       row.state === "active" ? { ...row, state: "success" as const } : row,
     ),
+    outputs: mergeOutputs(group.outputs, outputs),
   }));
 }
 
@@ -50,7 +67,7 @@ export function failActivityGroup(
   }));
 }
 
-function projectRows(rows: ActivityRow[], event: OpenPondWorkEvent): ActivityRow[] {
+function projectRows(rows: ActivityRow[], event: WorkStreamEvent): ActivityRow[] {
   if (event.type === "status") {
     return [
       ...rows.map((row) =>
@@ -85,6 +102,15 @@ function projectRows(rows: ActivityRow[], event: OpenPondWorkEvent): ActivityRow
     return [...rows.filter((item) => item.id !== row.id), row];
   }
   return rows;
+}
+
+function mergeOutputs(
+  current: ConversationOutput[],
+  incoming: ConversationOutput[],
+): ConversationOutput[] {
+  const outputs = new Map(current.map((output) => [output.id, output]));
+  for (const output of incoming) outputs.set(output.id, output);
+  return [...outputs.values()];
 }
 
 function updateGroup(

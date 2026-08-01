@@ -18,8 +18,8 @@ importers:
         specifier: 16.2.12
         version: 16.2.12(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       openpond-sdk:
-        specifier: 0.0.2
-        version: 0.0.2
+        specifier: file:../openpond/packages/sdk
+        version: link:../openpond/packages/sdk
       react:
         specifier: 19.2.8
         version: 19.2.8
@@ -914,10 +914,6 @@ packages:
         optional: true
       sass:
         optional: true
-
-  openpond-sdk@0.0.2:
-    resolution: {integrity: sha512-dfxBPk8dyvumR/fuKsdmJMJwxz9kbbMrYP/OoPPLGppCKhqyLBtkPTOjFh2ALnrP8WhxSvPMALwuB7K0OkCKOA==}
-    engines: {node: '>=22.14.0 <25'}
 
   parse-entities@4.0.2:
     resolution: {integrity: sha512-GG2AQYWoLgL877gQIKeRPGO1xF9+eG1ujIb5soS5gPvLQ1y2o8FL90w2QWNdf9I361Mpp7726c+lj3U0qK1uGw==}
@@ -1911,8 +1907,6 @@ snapshots:
     transitivePeerDependencies:
       - '@babel/core'
       - babel-plugin-macros
-
-  openpond-sdk@0.0.2: {}
 
   parse-entities@4.0.2:
     dependencies:

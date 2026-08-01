@@ -1,9 +1,14 @@
 import {
+  completeSandboxCleanup,
   deleteConversation,
+  enqueueSandboxCleanup,
   getConversation,
+  listStoredConversationOutputs,
 } from "@/lib/conversations";
 import { openPondClient } from "@/lib/openpond";
+import { retryPendingSandboxCleanups } from "@/lib/sandbox-cleanup";
 import { requireApiSession } from "@/lib/session";
+import { workOutputStore } from "@/lib/work-output-store";
 
 export const runtime = "nodejs";
 
@@ -24,9 +29,29 @@ export async function DELETE(_request: Request, context: Context) {
   const { conversationId } = await context.params;
   const existing = getConversation(session.user.id, conversationId);
   if (!existing) return Response.json({ error: "Not found" }, { status: 404 });
-  const sandboxId = deleteConversation(session.user.id, conversationId);
+  const storedOutputs = listStoredConversationOutputs(
+    session.user.id,
+    conversationId,
+  );
+  await retryPendingSandboxCleanups();
+  const sandboxId = existing.conversation.sandboxId;
   if (sandboxId) {
-    await openPondClient().work.deleteSandbox(sandboxId).catch(() => undefined);
+    enqueueSandboxCleanup(session.user.id, conversationId, sandboxId);
+    try {
+      await openPondClient().work.deleteSandbox(sandboxId);
+      completeSandboxCleanup(sandboxId);
+    } catch (error) {
+      enqueueSandboxCleanup(
+        session.user.id,
+        conversationId,
+        sandboxId,
+        error instanceof Error ? error.message : String(error),
+      );
+    }
   }
+  await Promise.all(
+    storedOutputs.map((output) => workOutputStore().delete(output.storageKey)),
+  );
+  deleteConversation(session.user.id, conversationId);
   return new Response(null, { status: 204 });
 }

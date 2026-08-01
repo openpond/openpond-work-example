@@ -13,10 +13,10 @@
     "auth:migrate": "pnpm --allow-build=better-sqlite3 dlx @better-auth/cli@1.4.21 migrate --config lib/auth-config.ts --yes"
   },
   "dependencies": {
-    "openpond-sdk": "0.0.2",
     "better-auth": "1.6.25",
     "lucide-react": "1.28.0",
     "next": "16.2.12",
+    "openpond-sdk": "file:../openpond/packages/sdk",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-markdown": "10.1.0",

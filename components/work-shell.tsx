@@ -1,6 +1,5 @@
 "use client";
 
-import type { OpenPondWorkEvent } from "openpond-sdk";
 import { PanelLeftOpen, PanelRightOpen } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
@@ -12,11 +11,16 @@ import {
   createActivityGroup,
   failActivityGroup,
   projectWorkEvent,
+  type WorkStreamEvent,
 } from "@/components/work-activity";
 import { WorkComposer } from "@/components/work-composer";
 import { WorkOutputPanel } from "@/components/work-output-panel";
 import { authClient } from "@/lib/auth-client";
-import type { Conversation, ConversationMessage } from "@/lib/conversations";
+import type {
+  Conversation,
+  ConversationMessage,
+  ConversationOutput,
+} from "@/lib/conversations";
 
 export function WorkShell({
   initialConversations,
@@ -28,6 +32,7 @@ export function WorkShell({
   const [conversations, setConversations] = useState(initialConversations);
   const [selectedId, setSelectedId] = useState(initialConversations[0]?.id ?? null);
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
+  const [outputs, setOutputs] = useState<ConversationOutput[]>([]);
   const [activityByConversation, setActivityByConversation] = useState<
     Record<string, WorkActivityGroup[]>
   >({});
@@ -49,6 +54,7 @@ export function WorkShell({
   useEffect(() => {
     if (!selectedId) {
       setMessages([]);
+      setOutputs([]);
       setLoading(false);
       return;
     }
@@ -62,6 +68,7 @@ export function WorkShell({
       })
       .then((detail) => {
         setMessages(detail.messages);
+        setOutputs(detail.outputs);
         setRunning(detail.conversation.status === "running");
       })
       .catch((caught) => {
@@ -83,6 +90,7 @@ export function WorkShell({
       setConversations((current) => [payload.conversation, ...current]);
       setSelectedId(payload.conversation.id);
       setMessages([]);
+      setOutputs([]);
       return payload.conversation.id;
     } catch (caught) {
       setError(errorMessage(caught));
@@ -168,14 +176,19 @@ export function WorkShell({
     }
     if (payload.type === "error") throw new Error(payload.error);
     if (payload.type === "complete") {
+      setOutputs((current) => mergeOutputs(current, payload.result.outputs));
       setActivityByConversation((current) =>
         updateConversationActivity(current, conversationId, (groups) =>
-          completeActivityGroup(groups, runId),
+          completeActivityGroup(groups, runId, payload.result.outputs),
         ),
       );
       return;
     }
     if (payload.type === "work") {
+      if (payload.event.type === "output") {
+        const output = payload.event.output;
+        setOutputs((current) => mergeOutputs(current, [output]));
+      }
       setActivityByConversation((current) =>
         updateConversationActivity(current, conversationId, (groups) =>
           projectWorkEvent(groups, runId, payload.event),
@@ -238,7 +251,11 @@ export function WorkShell({
         {error ? <div className="error-toast" role="alert">{error}</div> : null}
       </section>
       {rightPanelOpen ? (
-        <WorkOutputPanel groups={activityGroups} onClose={() => setRightPanelOpen(false)} />
+        <WorkOutputPanel
+          groups={activityGroups}
+          outputs={outputs}
+          onClose={() => setRightPanelOpen(false)}
+        />
       ) : null}
     </main>
   );
@@ -246,8 +263,8 @@ export function WorkShell({
 
 type StreamPayload =
   | { type: "message"; message: ConversationMessage }
-  | { type: "work"; event: OpenPondWorkEvent }
-  | { type: "complete"; result: unknown }
+  | { type: "work"; event: WorkStreamEvent }
+  | { type: "complete"; result: { outputs: ConversationOutput[] } }
   | { type: "error"; error: string };
 
 async function readEvents(
@@ -281,4 +298,13 @@ function updateConversationActivity(
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function mergeOutputs(
+  current: ConversationOutput[],
+  incoming: ConversationOutput[],
+): ConversationOutput[] {
+  const outputs = new Map(current.map((output) => [output.id, output]));
+  for (const output of incoming) outputs.set(output.id, output);
+  return [...outputs.values()];
 }

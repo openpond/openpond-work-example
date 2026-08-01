@@ -2,16 +2,7 @@
 
 A standalone Next.js application that demonstrates `openpond-sdk` in a real server application. It provides the focused Work experience from OpenPond Sandbox: email/password authentication, collapsible conversation and output sidebars, a centered work composer, a persistent transcript, and grouped live sandbox/model/command progress.
 
-OpenPond is an open-source agent orchestration system for doing durable work with any model, provider, or subscription. The SDK creates an isolated sandbox, asks OpenPond Chat to plan the work, executes model tool calls in that sandbox, and returns a sandbox ID that the next conversation turn can resume.
-
-## What this proves
-
-- `openpond-sdk` installs into an independent Next.js project.
-- The OpenPond API key only runs in Node route handlers and is never sent to the browser.
-- Each conversation keeps its sandbox, filesystem, and transcript across turns.
-- Deleting a conversation also requests deletion of its sandbox.
-- Work progress streams to the UI as newline-delimited JSON.
-- Better Auth provides open-source email/password authentication backed by local SQLite.
+OpenPond is an open-source agent orchestration system for doing durable work with any model, provider, or subscription. The server-focused SDK creates isolated compute, asks OpenPond Chat to plan the work, executes tool calls, persists final outputs, and deletes ordinary Work sandboxes when the turn ends. Later turns start fresh compute and receive the latest saved output revisions as inputs.
 
 ## Prerequisites
 
@@ -46,27 +37,29 @@ pnpm auth:migrate
 pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000), create an account, and enter a task. A repository URL is optional; leave it blank for an empty workspace.
+Open [http://localhost:3000](http://localhost:3000), create an account, and enter a task.
 
-Application data is written to `.data/openpond-work.sqlite` and is ignored by git. Set `OPENPOND_WORK_DATABASE` to use another SQLite file.
+Application data is written to `.data/openpond-work.sqlite`, while durable output bytes are written to `.data/work-outputs/`. Both are ignored by git. Set `OPENPOND_WORK_DATABASE` or `OPENPOND_WORK_OUTPUT_DIRECTORY` to use other server-side locations.
 
 ## SDK dependency
 
-This project installs the server-focused SDK directly from npm:
+While the lifecycle changes are being validated together, this checkout links the sibling OpenPond SDK source:
 
 ```json
-"openpond-sdk": "0.0.2"
+"openpond-sdk": "file:../openpond/packages/sdk"
 ```
 
-Install or update it independently of the OpenPond desktop application:
+After the next SDK patch is published, replace that development link with the public package. External applications install or update it independently of the OpenPond desktop application:
 
 ```bash
-pnpm add openpond-sdk@0.0.2
+pnpm add openpond-sdk@latest
 ```
 
 ## Architecture
 
-The home page requires a Better Auth session. Conversation and message rows are scoped to the authenticated user in SQLite. `POST /api/conversations/:id/run` starts `openpond.work.run`, streams SDK events, stores the completed assistant message, and records the reusable sandbox ID.
+The home page requires a Better Auth session. Conversation, message, output-revision, and cleanup-outbox rows are scoped to the authenticated user in SQLite. `POST /api/conversations/:id/run` starts `openpond.work.run` with `cleanup: "delete"`, streams SDK events, and awaits an output-persistence callback before sandbox deletion begins.
+
+Output downloads are served from the local output store, never from a live sandbox. If persistence fails, the sandbox is stopped and the cleanup outbox retries the copy before deletion. If deletion alone fails, the already-durable result remains downloadable while cleanup retries. A follow-up turn verifies and stages the latest revision of each saved output into a fresh sandbox.
 
 The browser never imports an SDK runtime or receives credentials. `lib/openpond.ts` is marked `server-only`, and the work route explicitly uses the Node.js runtime.
 
@@ -77,10 +70,10 @@ pnpm typecheck
 pnpm build
 ```
 
-For a live API check, create a disposable user, run a simple task such as “Create `hello.txt` containing `sdk works`, then read it back,” send a second turn asking it to read the same file, and delete the conversation when finished.
+For a live API check, create a disposable user, run a task such as “Create `hello.txt` containing `sdk works` as an output,” download it after the turn completes, then send a second turn asking OpenPond to revise the saved file. The second turn should use a new sandbox while still receiving the prior durable output.
 
 ## Deployment notes
 
-SQLite is ideal for this local proof. A multi-instance or serverless deployment should replace the conversation database with a durable hosted SQL database supported by Better Auth. The SDK and route handler do not otherwise depend on local state; the sandbox itself remains hosted by OpenPond.
+SQLite and local output storage are ideal for this local proof. A multi-instance or serverless deployment must replace them with durable hosted SQL and object storage; a serverless instance filesystem is not a durable output store. The `WorkOutputStore` interface in `lib/work-output-store.ts` is the replacement boundary for S3, R2, Vercel Blob, or another object store.
 
 Configure `OPENPOND_API_KEY`, `OPENPOND_API_URL`, `BETTER_AUTH_SECRET`, and `BETTER_AUTH_URL` as server-side deployment secrets. Never prefix the OpenPond key with `NEXT_PUBLIC_`.

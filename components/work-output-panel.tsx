@@ -3,27 +3,37 @@
 import {
   Check,
   CircleAlert,
+  Download,
+  FileText,
   LoaderCircle,
   PanelRightClose,
   Terminal,
 } from "lucide-react";
 
 import type { ActivityRow, WorkActivityGroup } from "@/components/types";
+import type { ConversationOutput } from "@/lib/conversations";
 
 export function WorkOutputPanel({
   groups,
+  outputs,
   onClose,
 }: {
   groups: WorkActivityGroup[];
+  outputs: ConversationOutput[];
   onClose: () => void;
 }) {
+  const groupedOutputIds = new Set(
+    groups.flatMap((group) => group.outputs.map((output) => output.id)),
+  );
+  const savedOutputs = outputs.filter((output) => !groupedOutputIds.has(output.id));
+  const empty = groups.length === 0 && savedOutputs.length === 0;
   return (
     <aside className="output-panel" aria-label="Work output">
       <button className="panel-toggle output-close" type="button" onClick={onClose} aria-label="Close work output">
         <PanelRightClose size={17} />
       </button>
       <div className="output-scroll" aria-live="polite">
-        {groups.length === 0 ? (
+        {empty ? (
           <div className="output-empty">
             <p>Output will appear here</p>
           </div>
@@ -48,11 +58,43 @@ export function WorkOutputPanel({
                   </div>
                 ))}
               </div>
+              {group.outputs.length > 0 ? (
+                <OutputCards outputs={group.outputs} />
+              ) : null}
             </section>
           ))
         )}
+        {savedOutputs.length > 0 ? (
+          <section className="work-group success">
+            <header className="work-group-header">
+              <FileText size={16} />
+              <div>
+                <strong>Saved outputs</strong>
+                <small>{savedOutputs.length === 1 ? "1 file" : `${savedOutputs.length} files`}</small>
+              </div>
+            </header>
+            <OutputCards outputs={savedOutputs} />
+          </section>
+        ) : null}
       </div>
     </aside>
+  );
+}
+
+function OutputCards({ outputs }: { outputs: ConversationOutput[] }) {
+  return (
+    <div className="output-cards">
+      {outputs.map((output) => (
+        <a className="output-card" href={output.downloadUrl} key={output.id}>
+          <FileText aria-hidden size={16} />
+          <span>
+            <strong>{output.name}</strong>
+            <small>{formatBytes(output.sizeBytes)}</small>
+          </span>
+          <Download aria-hidden size={15} />
+        </a>
+      ))}
+    </div>
   );
 }
 
@@ -69,4 +111,10 @@ function ActivityIcon({ row }: { row: ActivityRow }) {
     return <Terminal size={14} />;
   }
   return <Check size={14} />;
+}
+
+function formatBytes(value: number): string {
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 ** 2) return `${(value / 1024).toFixed(1)} KB`;
+  return `${(value / 1024 ** 2).toFixed(1)} MB`;
 }
