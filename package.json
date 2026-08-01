@@ -7,9 +7,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "test": "tsx --test components/*.test.ts",
     "typecheck": "tsc --noEmit",
     "check": "pnpm run typecheck && pnpm run build",
-    "setup:staging": "tsx scripts/setup-staging-env.ts",
     "auth:migrate": "pnpm --allow-build=better-sqlite3 dlx @better-auth/cli@1.4.21 migrate --config lib/auth-config.ts --yes"
   },
   "dependencies": {

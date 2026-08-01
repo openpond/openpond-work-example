@@ -25,10 +25,8 @@ export async function POST(request: Request, context: Context) {
 
   const body = (await request.json().catch(() => null)) as {
     prompt?: unknown;
-    repo?: unknown;
   } | null;
   const prompt = typeof body?.prompt === "string" ? body.prompt.trim() : "";
-  const repo = typeof body?.repo === "string" ? body.repo.trim() : "";
   if (!prompt) return Response.json({ error: "Prompt is required" }, { status: 400 });
 
   const userMessage = appendMessage(session.user.id, conversationId, "user", prompt);
@@ -45,7 +43,6 @@ export async function POST(request: Request, context: Context) {
           send({ type: "message", message: userMessage });
           const result = await openPondClient().work.run({
             prompt,
-            repo: repo || undefined,
             sandboxId: existing.conversation.sandboxId || undefined,
             history: existing.messages.map(({ role, content }) => ({ role, content })),
             signal: request.signal,

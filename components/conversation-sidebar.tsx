@@ -1,6 +1,6 @@
 "use client";
 
-import { LoaderCircle, Plus, Trash2 } from "lucide-react";
+import { LoaderCircle, PanelLeftClose, Plus, Trash2 } from "lucide-react";
 
 import type { Conversation } from "@/lib/conversations";
 
@@ -10,6 +10,7 @@ export function ConversationSidebar({
   selectedId,
   user,
   onCreate,
+  onClose,
   onDelete,
   onSelect,
   onSignOut,
@@ -19,6 +20,7 @@ export function ConversationSidebar({
   selectedId: string | null;
   user: { name: string; email: string };
   onCreate: () => void;
+  onClose: () => void;
   onDelete: (id: string) => void;
   onSelect: (id: string) => void;
   onSignOut: () => void;
@@ -27,8 +29,13 @@ export function ConversationSidebar({
     <aside className="sidebar">
       <div className="sidebar-header">
         <div className="brand-row">
-          <span className="brand-mark small" aria-hidden="true">O</span>
-          <span>OpenPond</span>
+          <div className="brand-copy">
+            <span className="brand-mark small" aria-hidden="true">O</span>
+            <span>OpenPond</span>
+          </div>
+          <button className="panel-toggle" type="button" onClick={onClose} aria-label="Close conversations">
+            <PanelLeftClose size={17} />
+          </button>
         </div>
         <button className="new-task-button" onClick={onCreate} disabled={creating}>
           {creating ? <LoaderCircle className="spin" size={16} /> : <Plus size={16} />}

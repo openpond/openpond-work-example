@@ -14,3 +14,10 @@ export type ActivityRow = {
   detail?: string;
   state: "active" | "success" | "error";
 };
+
+export type WorkActivityGroup = {
+  id: string;
+  title: string;
+  state: "active" | "success" | "error";
+  rows: ActivityRow[];
+};

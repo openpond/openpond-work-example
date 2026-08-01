@@ -1,12 +1,20 @@
 "use client";
 
 import type { OpenPondWorkEvent } from "openpond-sdk";
+import { PanelLeftOpen, PanelRightOpen } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 import { ConversationSidebar } from "@/components/conversation-sidebar";
 import { Transcript } from "@/components/transcript";
-import type { ActivityRow, ConversationDetail } from "@/components/types";
+import type { ConversationDetail, WorkActivityGroup } from "@/components/types";
+import {
+  completeActivityGroup,
+  createActivityGroup,
+  failActivityGroup,
+  projectWorkEvent,
+} from "@/components/work-activity";
 import { WorkComposer } from "@/components/work-composer";
+import { WorkOutputPanel } from "@/components/work-output-panel";
 import { authClient } from "@/lib/auth-client";
 import type { Conversation, ConversationMessage } from "@/lib/conversations";
 
@@ -20,13 +28,16 @@ export function WorkShell({
   const [conversations, setConversations] = useState(initialConversations);
   const [selectedId, setSelectedId] = useState(initialConversations[0]?.id ?? null);
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
-  const [activity, setActivity] = useState<ActivityRow[]>([]);
+  const [activityByConversation, setActivityByConversation] = useState<
+    Record<string, WorkActivityGroup[]>
+  >({});
   const [prompt, setPrompt] = useState("");
-  const [repo, setRepo] = useState("");
   const [creating, setCreating] = useState(false);
   const [loading, setLoading] = useState(Boolean(selectedId));
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [leftPanelOpen, setLeftPanelOpen] = useState(true);
+  const [rightPanelOpen, setRightPanelOpen] = useState(true);
 
   const refreshConversations = useCallback(async () => {
     const response = await fetch("/api/conversations");
@@ -72,7 +83,6 @@ export function WorkShell({
       setConversations((current) => [payload.conversation, ...current]);
       setSelectedId(payload.conversation.id);
       setMessages([]);
-      setActivity([]);
       return payload.conversation.id;
     } catch (caught) {
       setError(errorMessage(caught));
@@ -91,6 +101,11 @@ export function WorkShell({
     }
     const remaining = conversations.filter((conversation) => conversation.id !== id);
     setConversations(remaining);
+    setActivityByConversation((current) => {
+      const next = { ...current };
+      delete next[id];
+      return next;
+    });
     if (selectedId === id) setSelectedId(remaining[0]?.id ?? null);
   }
 
@@ -99,36 +114,50 @@ export function WorkShell({
     if (!submittedPrompt || running) return;
     const conversationId = selectedId ?? (await createTask());
     if (!conversationId) return;
+    const runId = crypto.randomUUID();
 
     setPrompt("");
     setRunning(true);
+    setRightPanelOpen(true);
     setError(null);
-    setActivity([{ id: "starting", label: "Preparing sandbox", state: "active" }]);
+    setActivityByConversation((current) =>
+      updateConversationActivity(current, conversationId, (groups) => [
+        ...groups,
+        createActivityGroup(runId, submittedPrompt),
+      ]),
+    );
     try {
       const response = await fetch(`/api/conversations/${conversationId}/run`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: submittedPrompt, repo: repo.trim() || undefined }),
+        body: JSON.stringify({ prompt: submittedPrompt }),
       });
       if (!response.ok || !response.body) {
         const payload = (await response.json().catch(() => null)) as { error?: string } | null;
         throw new Error(payload?.error || "Work request failed");
       }
-      await readEvents(response.body, handleStreamEvent);
+      await readEvents(response.body, (payload) =>
+        handleStreamEvent(payload, conversationId, runId),
+      );
       await refreshConversations();
     } catch (caught) {
       const message = errorMessage(caught);
       setError(message);
-      setActivity((current) => [
-        ...current.filter((row) => row.state !== "active"),
-        { id: `error-${Date.now()}`, label: message, state: "error" },
-      ]);
+      setActivityByConversation((current) =>
+        updateConversationActivity(current, conversationId, (groups) =>
+          failActivityGroup(groups, runId, message),
+        ),
+      );
     } finally {
       setRunning(false);
     }
   }
 
-  function handleStreamEvent(payload: StreamPayload) {
+  function handleStreamEvent(
+    payload: StreamPayload,
+    conversationId: string,
+    runId: string,
+  ) {
     if (payload.type === "message") {
       setMessages((current) =>
         current.some((message) => message.id === payload.message.id)
@@ -139,40 +168,61 @@ export function WorkShell({
     }
     if (payload.type === "error") throw new Error(payload.error);
     if (payload.type === "complete") {
-      setActivity((current) => current.map((row) => ({ ...row, state: "success" })));
+      setActivityByConversation((current) =>
+        updateConversationActivity(current, conversationId, (groups) =>
+          completeActivityGroup(groups, runId),
+        ),
+      );
       return;
     }
-    if (payload.type === "work") projectWorkEvent(payload.event, setActivity);
+    if (payload.type === "work") {
+      setActivityByConversation((current) =>
+        updateConversationActivity(current, conversationId, (groups) =>
+          projectWorkEvent(groups, runId, payload.event),
+        ),
+      );
+    }
   }
 
   const hasConversationContent = messages.length > 0 || running || loading;
+  const activityGroups = selectedId ? activityByConversation[selectedId] ?? [] : [];
   return (
-    <main className="work-app">
-      <ConversationSidebar
-        conversations={conversations}
-        creating={creating}
-        selectedId={selectedId}
-        user={user}
-        onCreate={() => void createTask()}
-        onDelete={(id) => void deleteTask(id)}
-        onSelect={(id) => {
-          setSelectedId(id);
-          setActivity([]);
-        }}
-        onSignOut={() => void authClient.signOut({ fetchOptions: { onSuccess: () => location.assign("/sign-in") } })}
-      />
+    <main className={`work-app${leftPanelOpen ? "" : " left-closed"}${rightPanelOpen ? "" : " right-closed"}`}>
+      {leftPanelOpen ? (
+        <ConversationSidebar
+          conversations={conversations}
+          creating={creating}
+          selectedId={selectedId}
+          user={user}
+          onCreate={() => void createTask()}
+          onClose={() => setLeftPanelOpen(false)}
+          onDelete={(id) => void deleteTask(id)}
+          onSelect={setSelectedId}
+          onSignOut={() => void authClient.signOut({ fetchOptions: { onSuccess: () => location.assign("/sign-in") } })}
+        />
+      ) : null}
       <section className="workspace">
+        <div className="workspace-panel-controls">
+          {!leftPanelOpen ? (
+            <button className="panel-toggle floating" type="button" onClick={() => setLeftPanelOpen(true)} aria-label="Open conversations">
+              <PanelLeftOpen size={18} />
+            </button>
+          ) : <span />}
+          {!rightPanelOpen ? (
+            <button className="panel-toggle floating" type="button" onClick={() => setRightPanelOpen(true)} aria-label="Open work output">
+              <PanelRightOpen size={18} />
+            </button>
+          ) : null}
+        </div>
         {hasConversationContent ? (
           <>
             <div className="workspace-scroll">
-              {loading ? <p className="loading-copy">Loading task…</p> : <Transcript messages={messages} activity={activity} />}
+              {loading ? <p className="loading-copy">Loading task…</p> : <Transcript messages={messages} />}
             </div>
             <WorkComposer
               disabled={running}
               prompt={prompt}
-              repo={repo}
               onPromptChange={setPrompt}
-              onRepoChange={setRepo}
               onSubmit={() => void run()}
             />
           </>
@@ -181,14 +231,15 @@ export function WorkShell({
             centered
             disabled={running || creating}
             prompt={prompt}
-            repo={repo}
             onPromptChange={setPrompt}
-            onRepoChange={setRepo}
             onSubmit={() => void run()}
           />
         )}
         {error ? <div className="error-toast" role="alert">{error}</div> : null}
       </section>
+      {rightPanelOpen ? (
+        <WorkOutputPanel groups={activityGroups} onClose={() => setRightPanelOpen(false)} />
+      ) : null}
     </main>
   );
 }
@@ -217,40 +268,15 @@ async function readEvents(
   if (buffer.trim()) receive(JSON.parse(buffer) as StreamPayload);
 }
 
-function projectWorkEvent(
-  event: OpenPondWorkEvent,
-  setActivity: React.Dispatch<React.SetStateAction<ActivityRow[]>>,
-) {
-  if (event.type === "status") {
-    setActivity((current) => [
-      ...current.map((row) => (row.state === "active" ? { ...row, state: "success" as const } : row)),
-      { id: `status-${Date.now()}`, label: event.message, state: "active" },
-    ]);
-  } else if (event.type === "sandbox") {
-    setActivity((current) => [
-      ...current.filter((row) => row.id !== "sandbox"),
-      {
-        id: "sandbox",
-        label: `Sandbox ${event.state}`,
-        detail: event.sandboxId,
-        state: "success",
-      },
-    ]);
-  } else if (event.type === "tool") {
-    const row: ActivityRow = {
-      id: event.toolCallId,
-      label: event.status === "started" ? "Running command" : `Ran ${event.command}`,
-      detail: event.status === "started" ? event.command : summarizeOutput(event.output),
-      state: event.status === "started" ? "active" : event.status === "succeeded" ? "success" : "error",
-    };
-    setActivity((current) => [...current.filter((item) => item.id !== row.id), row]);
-  }
-}
-
-function summarizeOutput(output?: string): string | undefined {
-  const compact = output?.replace(/\s+/g, " ").trim();
-  if (!compact) return undefined;
-  return compact.length > 160 ? `${compact.slice(0, 159)}…` : compact;
+function updateConversationActivity(
+  current: Record<string, WorkActivityGroup[]>,
+  conversationId: string,
+  update: (groups: WorkActivityGroup[]) => WorkActivityGroup[],
+): Record<string, WorkActivityGroup[]> {
+  return {
+    ...current,
+    [conversationId]: update(current[conversationId] ?? []),
+  };
 }
 
 function errorMessage(error: unknown): string {

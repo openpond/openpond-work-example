@@ -7,17 +7,13 @@ export function WorkComposer({
   centered = false,
   disabled,
   prompt,
-  repo,
   onPromptChange,
-  onRepoChange,
   onSubmit,
 }: {
   centered?: boolean;
   disabled: boolean;
   prompt: string;
-  repo: string;
   onPromptChange: (value: string) => void;
-  onRepoChange: (value: string) => void;
   onSubmit: () => void;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
@@ -50,14 +46,6 @@ export function WorkComposer({
           autoFocus
         />
         <div className="composer-footer">
-          <input
-            className="repo-input"
-            value={repo}
-            onChange={(event) => onRepoChange(event.target.value)}
-            placeholder="Repository URL (optional)"
-            aria-label="Repository URL"
-            disabled={disabled}
-          />
           <button
             className="send-button"
             type="submit"
@@ -68,7 +56,6 @@ export function WorkComposer({
           </button>
         </div>
       </form>
-      <p className="composer-hint">Enter to send · Shift + Enter for a new line</p>
     </div>
   );
 }

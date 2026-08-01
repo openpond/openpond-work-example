@@ -1,6 +1,6 @@
 # OpenPond Work example
 
-A standalone Next.js application that demonstrates `openpond-sdk` in a real server application. It provides the focused Work experience from OpenPond Sandbox: email/password authentication, a conversation sidebar, a centered work composer, a persistent transcript, and live sandbox/model/command progress.
+A standalone Next.js application that demonstrates `openpond-sdk` in a real server application. It provides the focused Work experience from OpenPond Sandbox: email/password authentication, collapsible conversation and output sidebars, a centered work composer, a persistent transcript, and grouped live sandbox/model/command progress.
 
 OpenPond is an open-source agent orchestration system for doing durable work with any model, provider, or subscription. The SDK creates an isolated sandbox, asks OpenPond Chat to plan the work, executes model tool calls in that sandbox, and returns a sandbox ID that the next conversation turn can resume.
 
@@ -18,17 +18,10 @@ OpenPond is an open-source agent orchestration system for doing durable work wit
 - Node.js 22.14 or newer (Node 24 is recommended)
 - pnpm 11
 - An OpenPond API key with sandbox and OpChat permissions
-- For staging behind Vercel protection, its automation bypass secret
 
 ## Local setup
 
-If this machine already has a staging account in `~/.openpond/config.json` and the sibling Sandbox Vercel project is linked, generate `.env.local` without printing its secrets:
-
-```bash
-pnpm setup:staging
-```
-
-Otherwise start from the template:
+Start from the environment template:
 
 ```bash
 cp .env.example .env.local
@@ -38,11 +31,12 @@ Set the server-only values in `.env.local`:
 
 ```dotenv
 OPENPOND_API_KEY=opk_...
-OPENPOND_API_URL=https://staging-api.openpond.ai
-VERCEL_AUTOMATION_BYPASS_SECRET=...
+OPENPOND_API_URL=https://api.openpond.ai
 BETTER_AUTH_SECRET=generate-a-random-secret-at-least-32-characters-long
 BETTER_AUTH_URL=http://localhost:3000
 ```
+
+The SDK sends requests to `https://api.openpond.ai` by default. `OPENPOND_API_URL` allows a private local override without changing application code.
 
 Then install, initialize Better Auth's SQLite tables, and run the app:
 
@@ -83,7 +77,7 @@ pnpm typecheck
 pnpm build
 ```
 
-For a live staging check, create a disposable user, run a simple task such as “Create `hello.txt` containing `sdk staging works`, then read it back,” send a second turn asking it to read the same file, and delete the conversation when finished.
+For a live API check, create a disposable user, run a simple task such as “Create `hello.txt` containing `sdk works`, then read it back,” send a second turn asking it to read the same file, and delete the conversation when finished.
 
 ## Deployment notes
 
