@@ -232,7 +232,7 @@ function projectWorkEvent(
       {
         id: "sandbox",
         label: `Sandbox ${event.state}`,
-        detail: `${event.sandboxId} · ${event.runtimeDriver}`,
+        detail: event.sandboxId,
         state: "success",
       },
     ]);

@@ -1,7 +1,4 @@
-import {
-  OpenPondNonExecutingSandboxError,
-  type OpenPondWorkEvent,
-} from "openpond-sdk";
+import type { OpenPondWorkEvent } from "openpond-sdk";
 
 import {
   appendMessage,
@@ -80,7 +77,6 @@ export async function POST(request: Request, context: Context) {
           updateConversationRun(session.user.id, conversationId, {
             status: "failed",
             error: message,
-            clearSandbox: error instanceof OpenPondNonExecutingSandboxError,
           });
           send({ type: "error", error: message });
         } finally {
