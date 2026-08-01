@@ -19,20 +19,13 @@ export function WorkOutputPanel({
 }) {
   return (
     <aside className="output-panel" aria-label="Work output">
-      <header className="output-header">
-        <div>
-          <span>Work output</span>
-          <small>{groups.length === 1 ? "1 work item" : `${groups.length} work items`}</small>
-        </div>
-        <button className="panel-toggle" type="button" onClick={onClose} aria-label="Close work output">
-          <PanelRightClose size={17} />
-        </button>
-      </header>
+      <button className="panel-toggle output-close" type="button" onClick={onClose} aria-label="Close work output">
+        <PanelRightClose size={17} />
+      </button>
       <div className="output-scroll" aria-live="polite">
         {groups.length === 0 ? (
           <div className="output-empty">
-            <Terminal size={18} />
-            <p>Command output will appear here when work starts.</p>
+            <p>Output will appear here</p>
           </div>
         ) : (
           groups.map((group, index) => (
