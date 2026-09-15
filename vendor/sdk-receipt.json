@@ -1,0 +1,8 @@
+{
+  "name": "openpond-sdk",
+  "version": "0.6.1",
+  "sourceCommit": "064ab7c68f5974e782b934d38af7331c47d41ef4",
+  "kind": "phase3-acceptance-candidate",
+  "archive": "openpond-sdk-0.6.1-064ab7c6.tgz",
+  "sha256": "68c75af095ff6925d1546397c79cf83aad8da4af92640ac6043a1293d91ae31c"
+}

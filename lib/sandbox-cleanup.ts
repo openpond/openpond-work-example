@@ -6,6 +6,9 @@ import {
   listPendingConversationOutputsForSandbox,
   listPendingSandboxCleanups,
   retrySandboxCleanup,
+  pendingAllocationRecovery,
+  finishAllocationRecovery,
+  enqueueSandboxCleanup,
 } from "@/lib/conversations";
 import { openPondClient } from "@/lib/openpond";
 import { workOutputStore } from "@/lib/work-output-store";
@@ -20,6 +23,16 @@ export function retryPendingSandboxCleanups(): Promise<void> {
 }
 
 async function runPendingSandboxCleanups(): Promise<void> {
+  const unresolved = pendingAllocationRecovery();
+  if (unresolved.length) {
+    const records = await openPondClient().sandboxes.list();
+    for (const entry of unresolved) {
+      const sandbox = records.find(record => record.metadata.workRequestId === entry.request_id);
+      if (!sandbox) continue;
+      enqueueSandboxCleanup(entry.user_id, entry.conversation_id, sandbox.id, "Interrupted allocation recovered");
+      finishAllocationRecovery(entry.request_id);
+    }
+  }
   for (const cleanup of listPendingSandboxCleanups()) {
     try {
       const pendingOutputs = listPendingConversationOutputsForSandbox(

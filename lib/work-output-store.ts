@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, open, readFile, rename, rm } from "node:fs/promises";
 import path from "node:path";
 
 export type StoredWorkOutput = {
@@ -46,8 +46,13 @@ class LocalWorkOutputStore implements WorkOutputStore {
     await mkdir(path.dirname(target), { recursive: true });
     const temporary = `${target}.${randomUUID()}.tmp`;
     try {
-      await writeFile(temporary, input.bytes, { flag: "wx" });
+      const file = await open(temporary, "wx", 0o600);
+      try { await file.writeFile(input.bytes); await file.sync(); }
+      finally { await file.close(); }
       await rename(temporary, target);
+      const directory = await open(path.dirname(target), "r");
+      try { await directory.sync(); }
+      finally { await directory.close(); }
     } finally {
       await rm(temporary, { force: true }).catch(() => undefined);
     }

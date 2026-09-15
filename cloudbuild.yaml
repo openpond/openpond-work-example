@@ -1,0 +1,8 @@
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: [build, --tag, 'us-east4-docker.pkg.dev/openpond/openpond-staging-byoc/work-example:${_SOURCE_COMMIT}', .]
+images:
+  - 'us-east4-docker.pkg.dev/openpond/openpond-staging-byoc/work-example:${_SOURCE_COMMIT}'
+options:
+  logging: CLOUD_LOGGING_ONLY
+timeout: 1200s

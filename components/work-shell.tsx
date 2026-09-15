@@ -1,7 +1,7 @@
 "use client";
 
 import { PanelLeftOpen, PanelRightOpen } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { ConversationSidebar } from "@/components/conversation-sidebar";
 import { Transcript } from "@/components/transcript";
@@ -30,6 +30,7 @@ export function WorkShell({
   user: { name: string; email: string };
 }) {
   const [conversations, setConversations] = useState(initialConversations);
+  const activeRun = useRef<AbortController | null>(null);
   const [selectedId, setSelectedId] = useState(initialConversations[0]?.id ?? null);
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [outputs, setOutputs] = useState<ConversationOutput[]>([]);
@@ -123,6 +124,8 @@ export function WorkShell({
     const conversationId = selectedId ?? (await createTask());
     if (!conversationId) return;
     const runId = crypto.randomUUID();
+    const controller = new AbortController();
+    activeRun.current = controller;
 
     setPrompt("");
     setRunning(true);
@@ -139,6 +142,7 @@ export function WorkShell({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: submittedPrompt }),
+        signal: controller.signal,
       });
       if (!response.ok || !response.body) {
         const payload = (await response.json().catch(() => null)) as { error?: string } | null;
@@ -149,7 +153,7 @@ export function WorkShell({
       );
       await refreshConversations();
     } catch (caught) {
-      const message = errorMessage(caught);
+      const message = controller.signal.aborted ? "Work canceled. Saved outputs are retained." : errorMessage(caught);
       setError(message);
       setActivityByConversation((current) =>
         updateConversationActivity(current, conversationId, (groups) =>
@@ -157,6 +161,7 @@ export function WorkShell({
         ),
       );
     } finally {
+      activeRun.current = null;
       setRunning(false);
     }
   }
@@ -241,6 +246,7 @@ export function WorkShell({
           </>
         ) : (
           <WorkComposer
+            onCancel={running ? () => activeRun.current?.abort() : undefined}
             centered
             disabled={running || creating}
             prompt={prompt}
