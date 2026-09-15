@@ -2,7 +2,6 @@ FROM node:24.18.0-bookworm-slim AS build
 WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@11.13.0 --activate
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY vendor ./vendor
 RUN pnpm install --frozen-lockfile
 COPY . .
 # Public build-only placeholder; the runtime requires its own secret.

@@ -43,19 +43,16 @@ Application data is written to `.data/openpond-work.sqlite`, while durable outpu
 
 ## SDK dependency
 
-This acceptance checkout uses a self-contained SDK archive, with its source commit
-and SHA-256 recorded in `vendor/sdk-receipt.json`:
+The application pins the independently published SDK package:
 
 ```json
-"openpond-sdk": "file:vendor/openpond-sdk-0.6.2-ea8d1f55.tgz"
+"openpond-sdk": "0.6.3"
 ```
 
-The archive is an acceptance candidate, not a new public npm release. After the
-verified SDK patch is published, pin that exact version. External applications
-install it independently of the OpenPond desktop application:
+External applications install it independently of the OpenPond desktop application:
 
 ```bash
-pnpm add openpond-sdk@latest
+pnpm add --save-exact openpond-sdk@0.6.3
 ```
 
 ## Architecture

@@ -16,7 +16,7 @@
     "better-auth": "1.6.25",
     "lucide-react": "1.28.0",
     "next": "16.2.12",
-    "openpond-sdk": "file:vendor/openpond-sdk-0.6.2-ea8d1f55.tgz",
+    "openpond-sdk": "0.6.3",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-markdown": "10.1.0",

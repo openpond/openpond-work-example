@@ -18,8 +18,8 @@ importers:
         specifier: 16.2.12
         version: 16.2.12(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       openpond-sdk:
-        specifier: file:vendor/openpond-sdk-0.6.2-ea8d1f55.tgz
-        version: file:vendor/openpond-sdk-0.6.2-ea8d1f55.tgz
+        specifier: 0.6.3
+        version: 0.6.3
       react:
         specifier: 19.2.8
         version: 19.2.8
@@ -947,9 +947,8 @@ packages:
       sass:
         optional: true
 
-  openpond-sdk@file:vendor/openpond-sdk-0.6.2-ea8d1f55.tgz:
-    resolution: {integrity: sha512-3VIze9X6FgK3nsdblyOVfarg4tbTYJW0gtVP+5T0/jpSXtgcQSSaWjMEQ1Nikt36gRY5UUkrIO5Iyx7U+LSdfg==, tarball: file:vendor/openpond-sdk-0.6.2-ea8d1f55.tgz}
-    version: 0.6.2
+  openpond-sdk@0.6.3:
+    resolution: {integrity: sha512-GO7TARV1Vtt3imV2/NY80VTbS8g5Jept+fPjOm8CUFG0hQV7fEubZIMiaNIOGEusUyaiUetsgzSo2tWBgdLQhg==}
     engines: {node: '>=22.14.0 <25'}
 
   parse-entities@4.0.2:
@@ -1986,7 +1985,7 @@ snapshots:
       - '@babel/core'
       - babel-plugin-macros
 
-  openpond-sdk@file:vendor/openpond-sdk-0.6.2-ea8d1f55.tgz:
+  openpond-sdk@0.6.3:
     dependencies:
       '@openpond/evals': 0.11.1(@openpond/harness@0.3.0)
       '@openpond/harness': 0.3.0
