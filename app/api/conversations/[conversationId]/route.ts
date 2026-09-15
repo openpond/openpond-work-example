@@ -29,6 +29,9 @@ export async function DELETE(_request: Request, context: Context) {
   const { conversationId } = await context.params;
   const existing = getConversation(session.user.id, conversationId);
   if (!existing) return Response.json({ error: "Not found" }, { status: 404 });
+  if (existing.conversation.status === "running") {
+    return Response.json({ error: "Cancel Work and wait for cleanup before deleting this task" }, { status: 409 });
+  }
   const storedOutputs = listStoredConversationOutputs(
     session.user.id,
     conversationId,

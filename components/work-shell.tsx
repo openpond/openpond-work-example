@@ -238,6 +238,7 @@ export function WorkShell({
               {loading ? <p className="loading-copy">Loading task…</p> : <Transcript messages={messages} />}
             </div>
             <WorkComposer
+              onCancel={running ? () => activeRun.current?.abort() : undefined}
               disabled={running}
               prompt={prompt}
               onPromptChange={setPrompt}

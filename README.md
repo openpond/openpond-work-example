@@ -47,7 +47,7 @@ This acceptance checkout uses a self-contained SDK archive, with its source comm
 and SHA-256 recorded in `vendor/sdk-receipt.json`:
 
 ```json
-"openpond-sdk": "file:vendor/openpond-sdk-0.6.1-064ab7c6.tgz"
+"openpond-sdk": "file:vendor/openpond-sdk-0.6.2-ea8d1f55.tgz"
 ```
 
 The archive is an acceptance candidate, not a new public npm release. After the
