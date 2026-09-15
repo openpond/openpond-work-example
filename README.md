@@ -98,7 +98,10 @@ set all three of `OPENPOND_MODEL_ENDPOINT`, `OPENPOND_MODEL_API_KEY`, and
 `OPENPOND_MODEL_ID`. The model endpoint is a Chat Completions base URL. Credentials
 stay in the application server and are never injected into guests.
 
-Cancel aborts the current Work request and begins cleanup. An application restart
+Cancel sends an authenticated, owner-scoped request to the application server,
+including after reopening a running task. Cancellation is cooperative: an
+in-flight sandbox command may finish within its 60-second command timeout before
+cleanup completes. The task remains busy until the server finishes. An application restart
 marks interrupted runs failed, retains saved history and files, and reconciles
 known guests and pending allocations. It never automatically replays tool side
 effects. Submit another turn to continue from durable history and outputs.

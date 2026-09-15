@@ -20,6 +20,7 @@ import { openPondClient } from "@/lib/openpond";
 import { retryPendingSandboxCleanups } from "@/lib/sandbox-cleanup";
 import { requireApiSession } from "@/lib/session";
 import { workOutputStore } from "@/lib/work-output-store";
+import { registerWorkRun } from "@/lib/work-runs";
 
 export const runtime = "nodejs";
 export const maxDuration = 800;
@@ -54,6 +55,7 @@ export async function POST(request: Request, context: Context) {
   const userMessage = appendMessage(session.user.id, conversationId, "user", prompt);
   const encoder = new TextEncoder();
   const cancellation = new AbortController();
+  const unregisterRun = registerWorkRun(session.user.id, conversationId, cancellation);
   const signal = AbortSignal.any([request.signal, cancellation.signal]);
   let disconnected = false;
   const stream = new ReadableStream<Uint8Array>({
@@ -144,9 +146,6 @@ export async function POST(request: Request, context: Context) {
                     finalAssistantText || "Work completed.",
                   );
                   assistantMessageCommitted = true;
-                  updateConversationRun(session.user.id, conversationId, {
-                    status: "completed",
-                  });
                   send({ type: "message", message: assistantMessage });
                 }
               }
@@ -186,7 +185,7 @@ export async function POST(request: Request, context: Context) {
             result: { ...result, outputs: [...persistedOutputs.values()] },
           });
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
+          const message = signal.aborted ? "Work canceled. Saved outputs are retained." : error instanceof Error ? error.message : String(error);
           if (!activeSandboxId) {
             // A timed-out allocation may still finish after the response is lost.
             enqueueAllocationRecovery(session.user.id, conversationId, requestId);
@@ -211,6 +210,7 @@ export async function POST(request: Request, context: Context) {
           });
           send({ type: "error", error: message });
         } finally {
+          unregisterRun();
           if (!disconnected) controller.close();
         }
       })();
