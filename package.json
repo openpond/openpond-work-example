@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "tsx --test components/*.test.ts",
+    "test": "tsx --test components/*.test.ts && node --conditions=react-server --import tsx --test lib/recovery.test.ts && node --test scripts/data-snapshot.test.mjs",
     "typecheck": "tsc --noEmit",
     "check": "pnpm run typecheck && pnpm run build",
     "auth:migrate": "pnpm --allow-build=better-sqlite3 dlx @better-auth/cli@1.4.21 migrate --config lib/auth-config.ts --yes"
