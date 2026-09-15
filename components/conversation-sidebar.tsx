@@ -8,6 +8,7 @@ import type { Conversation } from "@/lib/conversations";
 export function ConversationSidebar({
   conversations,
   creating,
+  busy = false,
   selectedId,
   user,
   onCreate,
@@ -18,6 +19,7 @@ export function ConversationSidebar({
 }: {
   conversations: Conversation[];
   creating: boolean;
+  busy?: boolean;
   selectedId: string | null;
   user: { name: string; email: string };
   onCreate: () => void;
@@ -38,7 +40,7 @@ export function ConversationSidebar({
             <PanelLeftClose size={17} />
           </button>
         </div>
-        <button className="new-task-button" onClick={onCreate} disabled={creating}>
+        <button className="new-task-button" onClick={onCreate} disabled={creating || busy}>
           {creating ? <LoaderCircle className="spin" size={16} /> : <Plus size={16} />}
           New task
         </button>
@@ -53,7 +55,7 @@ export function ConversationSidebar({
               className={`task-row${selectedId === conversation.id ? " selected" : ""}`}
               key={conversation.id}
             >
-              <button className="task-select" onClick={() => onSelect(conversation.id)}>
+              <button className="task-select" disabled={busy} onClick={() => onSelect(conversation.id)}>
                 <span className="task-title">{conversation.title}</span>
                 <span className="task-meta">
                   <StatusDot status={conversation.status} />
@@ -64,6 +66,7 @@ export function ConversationSidebar({
                 className="icon-button delete-task"
                 aria-label={`Delete ${conversation.title}`}
                 onClick={() => onDelete(conversation.id)}
+                disabled={busy || conversation.status === "running"}
               >
                 <Trash2 size={14} />
               </button>

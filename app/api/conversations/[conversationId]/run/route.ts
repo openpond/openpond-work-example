@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 import type {
   OpenPondWorkEvent,
@@ -7,6 +7,8 @@ import type {
 
 import {
   appendMessage,
+  claimConversationRun,
+  enqueueAllocationRecovery,
   enqueueSandboxCleanup,
   finalizeConversationOutput,
   getConversation,
@@ -18,6 +20,7 @@ import { openPondClient } from "@/lib/openpond";
 import { retryPendingSandboxCleanups } from "@/lib/sandbox-cleanup";
 import { requireApiSession } from "@/lib/session";
 import { workOutputStore } from "@/lib/work-output-store";
+import { registerWorkRun } from "@/lib/work-runs";
 
 export const runtime = "nodejs";
 export const maxDuration = 800;
@@ -46,13 +49,21 @@ export async function POST(request: Request, context: Context) {
     listStoredConversationOutputs(session.user.id, conversationId),
   );
 
+  const requestId = randomUUID();
+  if (!claimConversationRun(session.user.id, conversationId, requestId))
+    return Response.json({ error: "Conversation is already running" }, { status: 409 });
   const userMessage = appendMessage(session.user.id, conversationId, "user", prompt);
-  updateConversationRun(session.user.id, conversationId, { status: "running" });
   const encoder = new TextEncoder();
+  const cancellation = new AbortController();
+  const unregisterRun = registerWorkRun(session.user.id, conversationId, cancellation);
+  const signal = AbortSignal.any([request.signal, cancellation.signal]);
+  let disconnected = false;
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
       const send = (event: Record<string, unknown>) => {
-        controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+        if (disconnected) return;
+        try { controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`)); }
+        catch { disconnected = true; cancellation.abort(); }
       };
 
       void (async () => {
@@ -66,11 +77,12 @@ export async function POST(request: Request, context: Context) {
         try {
           send({ type: "message", message: userMessage });
           const result = await openPondClient().work.run({
+            requestId,
             prompt,
             history: existing.messages.map(({ role, content }) => ({ role, content })),
             inputs: priorInputs,
             cleanup: "delete",
-            signal: request.signal,
+            signal,
             metadata: { conversationId, userId: session.user.id },
             persistOutput: async ({ output, download }) => {
               if (!activeSandboxId) throw new Error("Work output has no sandbox");
@@ -134,9 +146,6 @@ export async function POST(request: Request, context: Context) {
                     finalAssistantText || "Work completed.",
                   );
                   assistantMessageCommitted = true;
-                  updateConversationRun(session.user.id, conversationId, {
-                    status: "completed",
-                  });
                   send({ type: "message", message: assistantMessage });
                 }
               }
@@ -176,8 +185,11 @@ export async function POST(request: Request, context: Context) {
             result: { ...result, outputs: [...persistedOutputs.values()] },
           });
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          if (activeSandboxId) {
+          const message = signal.aborted ? "Work canceled. Saved outputs are retained." : error instanceof Error ? error.message : String(error);
+          if (!activeSandboxId) {
+            // A timed-out allocation may still finish after the response is lost.
+            enqueueAllocationRecovery(session.user.id, conversationId, requestId);
+          } else {
             const lifecycle = workLifecycle(error);
             if (
               lifecycle?.cleanup?.status === "failed" ||
@@ -198,10 +210,12 @@ export async function POST(request: Request, context: Context) {
           });
           send({ type: "error", error: message });
         } finally {
-          controller.close();
+          unregisterRun();
+          if (!disconnected) controller.close();
         }
       })();
     },
+    cancel() { disconnected = true; cancellation.abort(); },
   });
 
   return new Response(stream, {

@@ -9,12 +9,14 @@ export function WorkComposer({
   prompt,
   onPromptChange,
   onSubmit,
+  onCancel,
 }: {
   centered?: boolean;
   disabled: boolean;
   prompt: string;
   onPromptChange: (value: string) => void;
   onSubmit: () => void;
+  onCancel?: () => void;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   function submit(event: FormEvent) {
@@ -46,6 +48,7 @@ export function WorkComposer({
           autoFocus
         />
         <div className="composer-footer">
+          {onCancel ? <button type="button" className="panel-toggle" onClick={onCancel}>Cancel work</button> : null}
           <button
             className="send-button"
             type="submit"

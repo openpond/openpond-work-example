@@ -136,6 +136,8 @@ ensureColumn("work_output", "storage_key", "TEXT");
 ensureColumn("work_output", "sha256", "TEXT");
 ensureColumn("work_output", "revision", "INTEGER NOT NULL DEFAULT 1");
 ensureColumn("work_output", "finalized", "INTEGER NOT NULL DEFAULT 0");
+ensureColumn("work_conversation", "request_id", "TEXT");
+database.exec("CREATE TABLE IF NOT EXISTS work_allocation_recovery (request_id TEXT PRIMARY KEY, user_id TEXT NOT NULL, conversation_id TEXT NOT NULL)");
 
 export function listConversations(userId: string): Conversation[] {
   const rows = database
@@ -147,6 +149,34 @@ export function listConversations(userId: string): Conversation[] {
     `)
     .all(userId) as unknown as ConversationRow[];
   return rows.map(mapConversation);
+}
+
+/** Atomic admission prevents two requests from running one conversation. */
+export function claimConversationRun(userId: string, conversationId: string, requestId: string): boolean {
+  return database.prepare("UPDATE work_conversation SET status = 'running', sandbox_id = NULL, error = NULL, request_id = ?, updated_at = ? WHERE id = ? AND user_id = ? AND status != 'running'")
+    .run(requestId, new Date().toISOString(), conversationId, userId).changes === 1;
+}
+
+/** Single-server startup recovery: retain history, never replay side effects. */
+export function recoverInterruptedRuns() {
+  const rows = database.prepare("SELECT id, user_id, sandbox_id, request_id FROM work_conversation WHERE status = 'running'").all() as unknown as Array<{ id: string; user_id: string; sandbox_id: string | null; request_id: string | null }>;
+  for (const row of rows) {
+    if (row.sandbox_id) enqueueSandboxCleanup(row.user_id, row.id, row.sandbox_id, "Application restarted during Work");
+    else if (row.request_id) database.prepare("INSERT OR IGNORE INTO work_allocation_recovery VALUES (?, ?, ?)").run(row.request_id, row.user_id, row.id);
+    updateConversationRun(row.user_id, row.id, { status: "failed", error: "Work was interrupted by an application restart. Saved outputs are retained; submit a new turn to continue." });
+  }
+}
+
+export function pendingAllocationRecovery() {
+  return database.prepare("SELECT request_id, user_id, conversation_id FROM work_allocation_recovery").all() as unknown as Array<{ request_id: string; user_id: string; conversation_id: string }>;
+}
+
+export function enqueueAllocationRecovery(userId: string, conversationId: string, requestId: string) {
+  database.prepare("INSERT OR IGNORE INTO work_allocation_recovery VALUES (?, ?, ?)").run(requestId, userId, conversationId);
+}
+
+export function finishAllocationRecovery(requestId: string) {
+  database.prepare("DELETE FROM work_allocation_recovery WHERE request_id = ?").run(requestId);
 }
 
 export function createConversation(userId: string): Conversation {

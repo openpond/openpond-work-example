@@ -1,7 +1,7 @@
 "use client";
 
 import { PanelLeftOpen, PanelRightOpen } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { ConversationSidebar } from "@/components/conversation-sidebar";
 import { Transcript } from "@/components/transcript";
@@ -30,6 +30,7 @@ export function WorkShell({
   user: { name: string; email: string };
 }) {
   const [conversations, setConversations] = useState(initialConversations);
+  const activeRun = useRef<AbortController | null>(null);
   const [selectedId, setSelectedId] = useState(initialConversations[0]?.id ?? null);
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [outputs, setOutputs] = useState<ConversationOutput[]>([]);
@@ -52,6 +53,7 @@ export function WorkShell({
   }, []);
 
   useEffect(() => {
+    if (activeRun.current) return;
     if (!selectedId) {
       setMessages([]);
       setOutputs([]);
@@ -59,26 +61,45 @@ export function WorkShell({
       return;
     }
     const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | undefined;
     setLoading(true);
     setError(null);
-    void fetch(`/api/conversations/${selectedId}`, { signal: controller.signal })
+    const load = () => fetch(`/api/conversations/${selectedId}`, { signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) throw new Error("Could not load this task");
         return response.json() as Promise<ConversationDetail>;
       })
       .then((detail) => {
+        if (controller.signal.aborted || activeRun.current) return;
         setMessages(detail.messages);
         setOutputs(detail.outputs);
         setRunning(detail.conversation.status === "running");
+        setConversations(current => current.map(row => row.id === detail.conversation.id ? detail.conversation : row));
+        if (detail.conversation.status !== "running") setError(detail.conversation.error);
+        if (detail.conversation.status === "running") timer = setTimeout(() => void load(), 2000);
       })
       .catch((caught) => {
-        if (!controller.signal.aborted) setError(errorMessage(caught));
+        if (!controller.signal.aborted) {
+          setError(errorMessage(caught));
+          timer = setTimeout(() => void load(), 5000);
+        }
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
       });
-    return () => controller.abort();
-  }, [selectedId]);
+    void load();
+    return () => { controller.abort(); clearTimeout(timer); };
+  }, [selectedId, running]);
+
+  async function cancelRun() {
+    if (!selectedId) return;
+    try {
+      const response = await fetch(`/api/conversations/${selectedId}/cancel`, { method: "POST" });
+      if (!response.ok) throw new Error("Could not request cancellation; refresh the task status");
+      activeRun.current?.abort();
+      setError("Cancellation requested. Cleanup continues on the server.");
+    } catch (caught) { setError(errorMessage(caught)); }
+  }
 
   async function createTask(): Promise<string | null> {
     setCreating(true);
@@ -123,9 +144,12 @@ export function WorkShell({
     const conversationId = selectedId ?? (await createTask());
     if (!conversationId) return;
     const runId = crypto.randomUUID();
+    const controller = new AbortController();
+    activeRun.current = controller;
 
     setPrompt("");
     setRunning(true);
+    setConversations(current => current.map(row => row.id === conversationId ? { ...row, status: "running" } : row));
     setRightPanelOpen(true);
     setError(null);
     setActivityByConversation((current) =>
@@ -139,6 +163,7 @@ export function WorkShell({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: submittedPrompt }),
+        signal: controller.signal,
       });
       if (!response.ok || !response.body) {
         const payload = (await response.json().catch(() => null)) as { error?: string } | null;
@@ -149,7 +174,7 @@ export function WorkShell({
       );
       await refreshConversations();
     } catch (caught) {
-      const message = errorMessage(caught);
+      const message = controller.signal.aborted ? "Work canceled. Saved outputs are retained." : errorMessage(caught);
       setError(message);
       setActivityByConversation((current) =>
         updateConversationActivity(current, conversationId, (groups) =>
@@ -157,7 +182,9 @@ export function WorkShell({
         ),
       );
     } finally {
+      activeRun.current = null;
       setRunning(false);
+      await refreshConversations().catch(() => undefined);
     }
   }
 
@@ -205,6 +232,7 @@ export function WorkShell({
         <ConversationSidebar
           conversations={conversations}
           creating={creating}
+          busy={running}
           selectedId={selectedId}
           user={user}
           onCreate={() => void createTask()}
@@ -233,6 +261,7 @@ export function WorkShell({
               {loading ? <p className="loading-copy">Loading task…</p> : <Transcript messages={messages} />}
             </div>
             <WorkComposer
+              onCancel={running ? () => void cancelRun() : undefined}
               disabled={running}
               prompt={prompt}
               onPromptChange={setPrompt}
@@ -241,6 +270,7 @@ export function WorkShell({
           </>
         ) : (
           <WorkComposer
+            onCancel={running ? () => void cancelRun() : undefined}
             centered
             disabled={running || creating}
             prompt={prompt}

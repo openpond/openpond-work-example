@@ -17,6 +17,7 @@ function createDatabase(): DatabaseSync {
   // instead of failing page-data collection with SQLITE_BUSY/LOCKED.
   database.exec("PRAGMA busy_timeout = 15000");
   database.exec("PRAGMA journal_mode = WAL");
+  database.exec("PRAGMA synchronous = FULL");
   database.exec("PRAGMA foreign_keys = ON");
   return database;
 }

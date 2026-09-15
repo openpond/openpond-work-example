@@ -6,4 +6,4 @@ allowBuilds:
   sharp: true
 
 minimumReleaseAgeExclude:
-  - openpond-sdk@0.0.2
+  - openpond-sdk@0.0.2 || 0.6.3

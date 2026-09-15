@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "tsx --test components/*.test.ts",
+    "test": "tsx --test components/*.test.ts && node --conditions=react-server --import tsx --test lib/*.test.ts && node --test scripts/data-snapshot.test.mjs",
     "typecheck": "tsc --noEmit",
     "check": "pnpm run typecheck && pnpm run build",
     "auth:migrate": "pnpm --allow-build=better-sqlite3 dlx @better-auth/cli@1.4.21 migrate --config lib/auth-config.ts --yes"
@@ -16,7 +16,7 @@
     "better-auth": "1.6.25",
     "lucide-react": "1.28.0",
     "next": "16.2.12",
-    "openpond-sdk": "file:../openpond/packages/sdk",
+    "openpond-sdk": "0.6.3",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-markdown": "10.1.0",
