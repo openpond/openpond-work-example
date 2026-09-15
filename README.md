@@ -110,3 +110,16 @@ separate volume before switching traffic. Keep the previous application image
 digest and snapshot for rollback; never run two app processes against this store.
 Retained backups contain customer data and authentication state and need the same
 encryption and access controls as the original volume.
+
+For the documented `/data/work.sqlite` layout, after draining and stopping the app:
+
+```bash
+node scripts/data-snapshot.mjs backup /data /backups/work-2026-09-15
+node scripts/data-snapshot.mjs restore /backups/work-2026-09-15 /data-restored
+```
+
+The backup command refuses outstanding Work/cleanup, locks database writers while
+copying, and records file hashes. Restore verifies those hashes and SQLite
+integrity and requires a new target directory. Mount the restored directory in
+the app, verify login/history/downloads, then switch traffic. Keep the original
+volume until restore acceptance succeeds.
